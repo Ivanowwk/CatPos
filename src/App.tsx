@@ -1,7 +1,7 @@
-import { POSPage } from './modules/pos/pages/POSPage'
+import { SalesHistoryPage } from './modules/sales/pages/SalesHistoryPage'
 
 function App() {
-  return <POSPage />
+  return <SalesHistoryPage />
 }
 
 export default App
