@@ -25,6 +25,11 @@ interface ProductsStore {
     product: Product
   ) => void
 
+  updateProduct: (
+    id: string,
+    changes: Partial<Product>
+  ) => void
+
   removeProduct: (
     id: string
   ) => void
@@ -43,6 +48,22 @@ export const useProductsStore =
             ...state.products,
             product
           ]
+        })),
+
+      updateProduct: (
+        id,
+        changes
+      ) =>
+        set((state) => ({
+          products: state.products.map(
+            (product) =>
+              product.id === id
+                ? {
+                    ...product,
+                    ...changes
+                  }
+                : product
+          )
         })),
 
       removeProduct: (id) =>

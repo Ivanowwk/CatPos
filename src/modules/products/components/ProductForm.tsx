@@ -19,6 +19,9 @@ export const ProductForm = () => {
   const [barcode, setBarcode] =
     useState('')
 
+  const [category, setCategory] =
+    useState('Bebidas')
+
   const [
     costPrice,
     setCostPrice
@@ -95,6 +98,8 @@ export const ProductForm = () => {
 
       barcode,
 
+      category,
+
       costPrice:
         numericCost,
 
@@ -116,6 +121,8 @@ export const ProductForm = () => {
     setProfitMargin('30')
 
     setStock('')
+
+    setCategory('Bebidas')
   }
 
   return (
@@ -199,6 +206,39 @@ export const ProductForm = () => {
             focus:border-blue-500
           "
         />
+      </div>
+
+      <div>
+        <p
+          className="
+            text-sm
+            text-gray-500
+            mb-2
+          "
+        >
+          Tipo de producto
+        </p>
+
+        <select
+          value={category}
+          onChange={(e) =>
+            setCategory(e.target.value)
+          }
+          className="
+            w-full
+            border
+            rounded-xl
+            p-3
+            outline-none
+            focus:border-blue-500
+          "
+        >
+          <option>Bebidas</option>
+          <option>Alimentos</option>
+          <option>Hogar</option>
+          <option>Oficina</option>
+          <option>Otros</option>
+        </select>
       </div>
 
       <div>

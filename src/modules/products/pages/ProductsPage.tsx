@@ -21,21 +21,34 @@ export const ProductsPage =
     const [search, setSearch] =
       useState('')
 
+    const [categoryFilter, setCategoryFilter] =
+      useState('Todos')
+
     const filteredProducts =
       useMemo(() => {
         return products.filter(
-          product =>
-            product.name
-              .toLowerCase()
-              .includes(
-                search.toLowerCase()
-              ) ||
-            product.barcode
-              ?.includes(search)
+          product => {
+            const matchesSearch =
+              product.name
+                .toLowerCase()
+                .includes(
+                  search.toLowerCase()
+                ) ||
+              product.barcode
+                ?.includes(search)
+
+            const matchesCategory =
+              categoryFilter === 'Todos' ||
+              product.category ===
+                categoryFilter
+
+            return matchesSearch && matchesCategory
+          }
         )
       }, [
         products,
-        search
+        search,
+        categoryFilter
       ])
 
     const formatPrice = (
@@ -103,24 +116,53 @@ export const ProductsPage =
                 </p>
               </div>
 
-              <input
-                value={search}
-                onChange={(e) =>
-                  setSearch(
-                    e.target.value
-                  )
-                }
-                placeholder="Buscar nombre o código..."
-                className="
-                  border
-                  rounded-xl
-                  px-4
-                  py-3
-                  w-[260px]
-                  outline-none
-                  focus:border-blue-500
-                "
-              />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  value={search}
+                  onChange={(e) =>
+                    setSearch(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Buscar nombre o código..."
+                  className="
+                    border
+                    rounded-xl
+                    px-4
+                    py-3
+                    w-full
+                    max-w-[260px]
+                    outline-none
+                    focus:border-blue-500
+                  "
+                />
+
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter(
+                      e.target.value
+                    )
+                  }
+                  className="
+                    border
+                    rounded-xl
+                    px-4
+                    py-3
+                    w-full
+                    max-w-[200px]
+                    outline-none
+                    focus:border-blue-500
+                  "
+                >
+                  <option>Todos</option>
+                  <option>Bebidas</option>
+                  <option>Alimentos</option>
+                  <option>Hogar</option>
+                  <option>Oficina</option>
+                  <option>Otros</option>
+                </select>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -229,6 +271,23 @@ export const ProductsPage =
                             product.profitMargin
                           }
                           %
+                        </span>
+
+                        <span
+                          className="
+                            bg-slate-100
+                            text-slate-700
+                            px-3
+                            py-1
+                            rounded-full
+                            text-sm
+                            font-medium
+                          "
+                        >
+                          {
+                            product.category ||
+                            'General'
+                          }
                         </span>
 
                         <span
