@@ -116,10 +116,15 @@ export const POSPage = () => {
               autoFocus
               value={barcode}
               onChange={(e) =>
-                handleScan(
+                setBarcode(
                   e.target.value
                 )
               }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleScan(barcode)
+                }
+              }}
               placeholder="Escanea producto..."
               className="
                 w-full

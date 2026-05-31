@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -10,7 +11,7 @@ import {
 } from '../store/products.store'
 
 export const ProductForm = () => {
-  const { addProduct } =
+  const { products, addProduct, updateProduct } =
     useProductsStore()
 
   const [name, setName] =
@@ -65,6 +66,34 @@ export const ProductForm = () => {
   const numericStock =
     parseNumber(stock)
 
+  const existingProduct = useMemo(
+    () =>
+      products.find(
+        (product) =>
+          product.barcode &&
+          product.barcode === barcode
+      ),
+    [products, barcode]
+  )
+
+  useEffect(() => {
+    if (!existingProduct) return
+
+    setName(existingProduct.name)
+    setCategory(
+      existingProduct.category ||
+        'Bebidas'
+    )
+    setCostPrice(
+      formatNumber(
+        String(existingProduct.costPrice)
+      )
+    )
+    setProfitMargin(
+      String(existingProduct.profitMargin)
+    )
+  }, [existingProduct])
+
   const salePrice =
     useMemo(() => {
       return Math.round(
@@ -89,28 +118,42 @@ export const ProductForm = () => {
   }
 
   const submit = () => {
-    if (!name) return
+    if (!name || numericCost <= 0 || numericStock <= 0) return
 
-    addProduct({
-      id: uuid(),
+    if (existingProduct) {
+      updateProduct(existingProduct.id, {
+        name,
+        barcode,
+        category,
+        costPrice: numericCost,
+        profitMargin: numericMargin,
+        salePrice,
+        stock:
+          existingProduct.stock +
+          numericStock
+      })
+    } else {
+      addProduct({
+        id: uuid(),
 
-      name,
+        name,
 
-      barcode,
+        barcode,
 
-      category,
+        category,
 
-      costPrice:
-        numericCost,
+        costPrice:
+          numericCost,
 
-      profitMargin:
-        numericMargin,
+        profitMargin:
+          numericMargin,
 
-      salePrice,
+        salePrice,
 
-      stock:
-        numericStock
-    })
+        stock:
+          numericStock
+      })
+    }
 
     setName('')
 
@@ -313,15 +356,22 @@ export const ProductForm = () => {
       </div>
 
       <div>
-        <p
-          className="
-            text-sm
-            text-gray-500
-            mb-2
-          "
-        >
-          Cantidad / Stock
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p
+            className="
+              text-sm
+              text-gray-500
+              mb-2
+            "
+          >
+            Cantidad / Stock
+          </p>
+          {existingProduct ? (
+            <span className="text-xs text-slate-500">
+              Stock actual: {existingProduct.stock}
+            </span>
+          ) : null}
+        </div>
 
         <input
           type="text"
@@ -347,6 +397,12 @@ export const ProductForm = () => {
             focus:border-blue-500
           "
         />
+
+        {existingProduct ? (
+          <p className="text-xs text-slate-500 mt-2">
+            Este producto ya existe. La cantidad ingresada se sumará al stock existente.
+          </p>
+        ) : null}
       </div>
 
       <div

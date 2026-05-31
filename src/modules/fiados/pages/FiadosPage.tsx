@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 
 import { useFiadosStore } from '../store/fiados.store'
+import { useSalesStore } from '../../sales/store/sales.store'
 
 const statusOptions = ['Pendiente', 'Pagado'] as const
 
 export const FiadosPage = () => {
   const { fiados, addFiado, markPaid, removeFiado } = useFiadosStore()
+  const { addSale } = useSalesStore()
 
   const [client, setClient] = useState('')
   const [concept, setConcept] = useState('')
@@ -14,6 +16,7 @@ export const FiadosPage = () => {
   const [dueDate, setDueDate] = useState('')
   const [status, setStatus] = useState<typeof statusOptions[number]>('Pendiente')
   const [search, setSearch] = useState('')
+  const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
 
   const numericAmount = Number(amount.replace(/\./g, '')) || 0
 
@@ -63,6 +66,22 @@ export const FiadosPage = () => {
     setAmount('')
     setDueDate('')
     setStatus('Pendiente')
+  }
+
+  const handleConfirmPaid = (fiado: any) => {
+    markPaid(fiado.id)
+
+    addSale({
+      id: uuid(),
+      createdAt: new Date().toISOString(),
+      paymentMethod: 'Fiado Pagado',
+      total: fiado.amount,
+      received: fiado.amount,
+      change: 0,
+      items: []
+    })
+
+    setConfirmPaidId(null)
   }
 
   return (
@@ -206,7 +225,7 @@ export const FiadosPage = () => {
                       </span>
 
                       <button
-                        onClick={() => markPaid(fiado.id)}
+                        onClick={() => setConfirmPaidId(fiado.id)}
                         className="rounded-2xl bg-blue-600 px-4 py-2 text-white text-sm hover:bg-blue-700 transition"
                       >
                         Marcar pagado
@@ -226,6 +245,42 @@ export const FiadosPage = () => {
           )}
         </div>
       </div>
+
+      {confirmPaidId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-md">
+            <h2 className="text-2xl font-bold mb-4">Confirmar pago de fiado</h2>
+            {fiados.map(fiado =>
+              fiado.id === confirmPaidId ? (
+                <div key={fiado.id} className="mb-6">
+                  <div className="bg-blue-50 rounded-2xl p-4 mb-4">
+                    <p className="text-sm text-blue-700">Cliente</p>
+                    <p className="font-semibold text-lg">{fiado.client}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-2xl p-4 mb-6">
+                    <p className="text-sm text-green-700">Monto a registrar</p>
+                    <p className="font-bold text-2xl text-green-600">${formatPrice(fiado.amount)}</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setConfirmPaidId(null)}
+                      className="flex-1 rounded-2xl border px-4 py-3 text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleConfirmPaid(fiado)}
+                      className="flex-1 rounded-2xl bg-green-600 px-4 py-3 text-white hover:bg-green-700 transition font-semibold"
+                    >
+                      Confirmar pago
+                    </button>
+                  </div>
+                </div>
+              ) : null
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
