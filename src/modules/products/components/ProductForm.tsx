@@ -10,7 +10,7 @@ import {
   useProductsStore
 } from '../store/products.store'
 
-export const ProductForm = () => {
+export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => {
   const { products, addProduct, updateProduct } =
     useProductsStore()
 
@@ -68,13 +68,16 @@ export const ProductForm = () => {
 
   const existingProduct = useMemo(
     () =>
-      products.find(
-        (product) =>
-          product.barcode &&
-          product.barcode === barcode
+      products.find((product) =>
+        (product.barcode && product.barcode === barcode) ||
+        product.id === barcode
       ),
     [products, barcode]
   )
+
+  useEffect(() => {
+    if (initialBarcode) setBarcode(initialBarcode)
+  }, [initialBarcode])
 
   useEffect(() => {
     if (!existingProduct) return
@@ -109,13 +112,7 @@ export const ProductForm = () => {
       numericMargin
     ])
 
-  const formatPrice = (
-    value: number
-  ) => {
-    return new Intl.NumberFormat(
-      'es-CO'
-    ).format(value)
-  }
+  
 
   const submit = () => {
     if (!name || numericCost <= 0 || numericStock <= 0) return
@@ -405,38 +402,7 @@ export const ProductForm = () => {
         ) : null}
       </div>
 
-      <div
-        className="
-          bg-blue-50
-          border
-          border-blue-200
-          rounded-2xl
-          p-5
-        "
-      >
-        <p
-          className="
-            text-sm
-            text-blue-700
-            mb-2
-          "
-        >
-          Precio final de venta
-        </p>
-
-        <h3
-          className="
-            text-4xl
-            font-bold
-            text-blue-600
-          "
-        >
-          $
-          {formatPrice(
-            salePrice
-          )}
-        </h3>
-      </div>
+      {/* Precio final de venta removed from product form - not needed in product management */}
 
       <button
         onClick={submit}

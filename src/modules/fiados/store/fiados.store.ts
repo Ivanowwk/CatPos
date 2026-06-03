@@ -7,6 +7,8 @@ interface FiadosStore {
 
   addFiado: (fiado: Fiado) => void
 
+  updateFiado: (id: string, updatedFields: Partial<Fiado>) => void
+
   markPaid: (id: string) => void
 
   removeFiado: (id: string) => void
@@ -18,6 +20,18 @@ export const useFiadosStore = create<FiadosStore>((set) => ({
   addFiado: (fiado) =>
     set((state) => ({
       fiados: [fiado, ...state.fiados]
+    })),
+
+  updateFiado: (id, updatedFields) =>
+    set((state) => ({
+      fiados: state.fiados.map((fiado) =>
+        fiado.id === id
+          ? {
+              ...fiado,
+              ...updatedFields
+            }
+          : fiado
+      )
     })),
 
   markPaid: (id) =>

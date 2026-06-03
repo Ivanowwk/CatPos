@@ -19,6 +19,19 @@ interface CartStore {
     id: string
   ) => void
 
+  increaseQuantity: (
+    id: string
+  ) => void
+
+  decreaseQuantity: (
+    id: string
+  ) => void
+
+  updateQuantity: (
+    id: string,
+    quantity: number
+  ) => void
+
   clearCart: () => void
 }
 
@@ -76,6 +89,60 @@ export const useCartStore =
               item =>
                 item.id !== id
             )
+        })),
+
+      increaseQuantity: (
+        id
+      ) =>
+        set((state) => ({
+          items: state.items.map(
+            item =>
+              item.id === id
+                ? {
+                    ...item,
+                    quantity:
+                      item.quantity +
+                      1
+                  }
+                : item
+          )
+        })),
+
+      decreaseQuantity: (
+        id
+      ) =>
+        set((state) => ({
+          items: state.items.map(
+            item =>
+              item.id === id
+                ? {
+                    ...item,
+                    quantity:
+                      Math.max(
+                        1,
+                        item.quantity -
+                          1
+                      )
+                  }
+                : item
+          )
+        })),
+
+      updateQuantity: (
+        id,
+        quantity
+      ) =>
+        set((state) => ({
+          items: state.items.map(
+            item =>
+              item.id === id
+                ? {
+                    ...item,
+                    quantity:
+                      Math.max(1, quantity)
+                  }
+                : item
+          )
         })),
 
       clearCart: () =>

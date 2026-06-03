@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState
 } from 'react'
@@ -6,6 +7,7 @@ import {
 import {
   useProductsStore
 } from '../../products/store/products.store'
+import { QuickProductModal } from '../components/QuickProductModal'
 
 import {
   useCartStore
@@ -22,11 +24,15 @@ export const POSPage = () => {
   const {
     items,
     addToCart,
-    removeFromCart
+    removeFromCart,
+    updateQuantity
   } = useCartStore()
 
   const [barcode, setBarcode] =
     useState('')
+
+  const [quickProduct, setQuickProduct] = useState<null | any>(null)
+  const [quickOpen, setQuickOpen] = useState(false)
 
   const [checkoutOpen,
     setCheckoutOpen
@@ -35,19 +41,31 @@ export const POSPage = () => {
   const handleScan = (
     value: string
   ) => {
+    const trimmed = value.trim()
     setBarcode(value)
 
-    const product =
-      products.find(
-        p =>
-          p.barcode === value
-      )
+    if (!trimmed) return
+
+    const product = products.find((p) => p.barcode === trimmed)
 
     if (product) {
       addToCart(product)
-
       setBarcode('')
+      return
     }
+
+    setQuickProduct({
+      barcode: trimmed,
+      name: '',
+      brand: undefined,
+      image: null,
+      quantity: undefined,
+      categories: [],
+      salePrice: 0,
+      costPrice: 0,
+      stock: 0
+    })
+    setQuickOpen(true)
   }
 
   const total =
@@ -69,6 +87,28 @@ export const POSPage = () => {
     ).format(value)
   }
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+
+      const target = event.target as HTMLElement | null
+      if (
+        target?.closest('input, textarea, select') ||
+        target?.isContentEditable
+      ) {
+        return
+      }
+
+      if (items.length > 0) {
+        event.preventDefault()
+        setCheckoutOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [items])
+
   return (
     <>
       <CheckoutModal
@@ -78,6 +118,17 @@ export const POSPage = () => {
             false
           )
         }
+      />
+
+      <QuickProductModal
+        open={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        initial={quickProduct || { barcode: '', name: '' }}
+        onSaved={() => {
+          // after saving, add to cart if product exists
+          const saved = products.find((p) => p.barcode === (quickProduct && quickProduct.barcode))
+          if (saved) addToCart(saved)
+        }}
       />
 
       <div
@@ -112,96 +163,54 @@ export const POSPage = () => {
               Punto de venta
             </h1>
 
-            <input
-              autoFocus
-              value={barcode}
-              onChange={(e) =>
-                setBarcode(
-                  e.target.value
-                )
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleScan(barcode)
+            <div className="flex flex-col gap-3">
+              <input
+                autoFocus
+                value={barcode}
+                onChange={(e) =>
+                  setBarcode(
+                    e.target.value
+                  )
                 }
-              }}
-              placeholder="Escanea producto..."
-              className="
-                w-full
-                border-2
-                border-blue-500
-                rounded-2xl
-                p-5
-                text-xl
-                outline-none
-              "
-            />
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleScan(barcode)
+                  }
+                }}
+                placeholder="Escanea producto..."
+                className="
+                  w-full
+                  border-2
+                  border-blue-500
+                  rounded-2xl
+                  p-5
+                  text-xl
+                  outline-none
+                "
+              />
+              <button
+                onClick={() => handleScan(barcode)}
+                disabled={!barcode.trim()}
+                className="
+                  w-full
+                  rounded-2xl
+                  bg-blue-600
+                  text-white
+                  py-4
+                  text-lg
+                  font-semibold
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                "
+              >
+                Agregar código
+              </button>
+            </div>
 
-            <div
-              className="
-                mt-6
-                grid
-                grid-cols-3
-                gap-4
-              "
-            >
-              {products.map(
-                product => (
-                  <button
-                    key={
-                      product.id
-                    }
-                    onClick={() =>
-                      addToCart(
-                        product
-                      )
-                    }
-                    className="
-                      border
-                      rounded-2xl
-                      p-4
-                      text-left
-                      hover:border-blue-500
-                      transition
-                    "
-                  >
-                    <h3
-                      className="
-                        font-bold
-                      "
-                    >
-                      {
-                        product.name
-                      }
-                    </h3>
-
-                    <p
-                      className="
-                        text-blue-600
-                        font-semibold
-                        mt-2
-                      "
-                    >
-                      $
-                      {formatPrice(
-                        product.salePrice
-                      )}
-                    </p>
-
-                    <p
-                      className="
-                        text-xs
-                        text-gray-400
-                        mt-2
-                      "
-                    >
-                      {
-                        product.barcode
-                      }
-                    </p>
-                  </button>
-                )
-              )}
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+              <p className="text-lg font-semibold mb-2">Escanea el producto o escribe el código.</p>
+              <p className="text-sm">No se muestran todos los productos aquí para que la venta sea más rápida.</p>
             </div>
           </div>
 
@@ -213,22 +222,20 @@ export const POSPage = () => {
               p-5
               flex
               flex-col
+              h-[calc(100vh-200px)]
             "
           >
-            <h2
-              className="
-                text-2xl
-                font-bold
-                mb-5
-              "
-            >
-              Carrito
-            </h2>
+            <div className="mb-5">
+              <h2 className="text-2xl font-bold">Carrito</h2>
+              <p className="text-sm text-gray-500">Presiona Espacio para cobrar</p>
+            </div>
 
             <div
               className="
                 flex-1
                 space-y-3
+                overflow-y-auto
+                pb-5
               "
             >
               {items.map(item => (
@@ -252,18 +259,39 @@ export const POSPage = () => {
                       {item.name}
                     </h3>
 
-                    <p
-                      className="
-                        text-sm
-                        text-gray-500
-                      "
-                    >
+                    <label className="block text-sm text-gray-500">
                       Cantidad:
-                      {' '}
-                      {
-                        item.quantity
-                      }
-                    </p>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const value = Number(e.target.value)
+
+                        if (
+                          Number.isInteger(value) &&
+                          value >= 1
+                        ) {
+                          updateQuantity(
+                            item.id,
+                            value
+                          )
+                        }
+                      }}
+                      className="
+                        mt-1
+                        w-24
+                        border
+                        rounded-xl
+                        p-2
+                        text-center
+                        focus:outline-none
+                        focus:ring-2
+                        focus:ring-blue-500
+                      "
+                    />
                   </div>
 
                   <div
@@ -305,20 +333,25 @@ export const POSPage = () => {
             <div
               className="
                 border-t
-                mt-5
+                mt-auto
                 pt-5
+                bg-white
+                flex
+                items-center
+                justify-between
+                gap-4
               "
             >
               <div
                 className="
                   flex
-                  justify-between
+                  flex-col
                   text-3xl
                   font-bold
+                  text-blue-600
                 "
               >
-                <span>Total</span>
-
+                <span className="text-sm text-gray-500 font-normal mb-1">Total</span>
                 <span>
                   $
                   {formatPrice(
@@ -334,16 +367,16 @@ export const POSPage = () => {
                   )
                 }
                 className="
-                  w-full
-                  mt-5
                   bg-green-600
                   hover:bg-green-700
                   transition
                   text-white
                   rounded-2xl
                   py-5
+                  px-8
                   text-xl
                   font-bold
+                  whitespace-nowrap
                 "
               >
                 Cobrar

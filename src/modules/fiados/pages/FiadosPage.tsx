@@ -7,7 +7,7 @@ import { useSalesStore } from '../../sales/store/sales.store'
 const statusOptions = ['Pendiente', 'Pagado'] as const
 
 export const FiadosPage = () => {
-  const { fiados, addFiado, markPaid, removeFiado } = useFiadosStore()
+  const { fiados, addFiado, updateFiado, markPaid, removeFiado } = useFiadosStore()
   const { addSale } = useSalesStore()
 
   const [client, setClient] = useState('')
@@ -17,6 +17,8 @@ export const FiadosPage = () => {
   const [status, setStatus] = useState<typeof statusOptions[number]>('Pendiente')
   const [search, setSearch] = useState('')
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
+  const [editingFiadoId, setEditingFiadoId] = useState<string | null>(null)
+  const [expandedClientIds, setExpandedClientIds] = useState<string[]>([])
 
   const numericAmount = Number(amount.replace(/\./g, '')) || 0
 
@@ -36,12 +38,40 @@ export const FiadosPage = () => {
           fiado.client
             .toLowerCase()
             .includes(search.toLowerCase()) ||
+          fiado.clientId
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
           fiado.concept
             .toLowerCase()
             .includes(search.toLowerCase())
       ),
     [fiados, search]
   )
+
+  const groupedFiadosByClient = useMemo(() => {
+    return Object.values(
+      filteredFiados.reduce<Record<string, {
+        clientId: string
+        client: string
+        fiados: typeof fiados
+      }>>((acc, fiado) => {
+        if (!acc[fiado.clientId]) {
+          acc[fiado.clientId] = {
+            clientId: fiado.clientId,
+            client: fiado.client,
+            fiados: []
+          }
+        }
+
+        acc[fiado.clientId].fiados.push(fiado)
+        return acc
+      }, {})
+    )
+  }, [filteredFiados, fiados])
+
+  const selectedFiado = editingFiadoId
+    ? fiados.find((fiado) => fiado.id === editingFiadoId)
+    : null
 
   const totalOwed = useMemo(
     () => fiados.reduce((acc, fiado) => acc + fiado.amount, 0),
@@ -51,21 +81,42 @@ export const FiadosPage = () => {
   const submitFiado = () => {
     if (!client || !concept || numericAmount <= 0 || !dueDate) return
 
-    addFiado({
-      id: uuid(),
-      client,
-      concept,
-      amount: numericAmount,
-      dueDate,
-      status,
-      createdAt: new Date().toISOString()
-    })
+    const normalizedClient = client.trim()
+    const existingClient = fiados.find(
+      (fiado) => fiado.client.toLowerCase() === normalizedClient.toLowerCase()
+    )
+
+    const clientId =
+      existingClient?.clientId ?? selectedFiado?.clientId ?? uuid()
+
+    if (editingFiadoId && selectedFiado) {
+      updateFiado(editingFiadoId, {
+        client,
+        clientId,
+        concept,
+        amount: numericAmount,
+        dueDate,
+        status
+      })
+    } else {
+      addFiado({
+        id: uuid(),
+        client,
+        clientId,
+        concept,
+        amount: numericAmount,
+        dueDate,
+        status,
+        createdAt: new Date().toISOString()
+      })
+    }
 
     setClient('')
     setConcept('')
     setAmount('')
     setDueDate('')
     setStatus('Pendiente')
+    setEditingFiadoId(null)
   }
 
   const handleConfirmPaid = (fiado: any) => {
@@ -114,6 +165,14 @@ export const FiadosPage = () => {
               placeholder="Juan Pérez"
               className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
             />
+            <p className="mt-2 text-xs text-gray-400">
+              Si el nombre coincide con un cliente ya existente, se reutiliza su ID y cualquier nuevo concepto se guarda en la misma cuenta.
+            </p>
+            {editingFiadoId && (
+              <p className="mt-2 text-xs text-blue-600">
+                Editando fiado: guarda los cambios o cancela para crear uno nuevo.
+              </p>
+            )}
           </div>
 
           <div>
@@ -162,12 +221,29 @@ export const FiadosPage = () => {
             </select>
           </div>
 
-          <button
-            onClick={submitFiado}
-            className="w-full rounded-2xl bg-green-600 py-4 text-white font-semibold hover:bg-green-700 transition"
-          >
-            Registrar fiado
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={submitFiado}
+              className="w-full rounded-2xl bg-green-600 py-4 text-white font-semibold hover:bg-green-700 transition"
+            >
+              {editingFiadoId ? 'Guardar cambios' : 'Registrar fiado'}
+            </button>
+            {editingFiadoId && (
+              <button
+                onClick={() => {
+                  setEditingFiadoId(null)
+                  setClient('')
+                  setConcept('')
+                  setAmount('')
+                  setDueDate('')
+                  setStatus('Pendiente')
+                }}
+                className="w-full rounded-2xl border border-slate-200 py-4 text-slate-700 hover:bg-slate-50 transition"
+              >
+                Cancelar edición
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl border shadow-sm p-6">
@@ -191,56 +267,125 @@ export const FiadosPage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredFiados.map((fiado) => (
-                <div key={fiado.id} className="rounded-3xl border p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
-                    <div>
-                      <p className="text-sm text-gray-500">Cliente</p>
-                      <h3 className="text-xl font-bold">{fiado.client}</h3>
-                    </div>
+              {groupedFiadosByClient.map((group) => {
+                const clientTotal = group.fiados.reduce((acc, fiado) => acc + fiado.amount, 0)
+                const isExpanded = expandedClientIds.includes(group.clientId)
 
-                    <div className="grid grid-cols-2 gap-3 text-sm text-gray-500">
+                return (
+                  <div key={group.clientId} className="rounded-3xl border p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p>Vence</p>
-                        <p className="font-medium">{fiado.dueDate}</p>
+                        <p className="text-sm text-gray-500">Cliente</p>
+                        <h3 className="text-xl font-bold">{group.client}</h3>
+                        <p className="text-xs text-gray-400 mt-1">ID: {group.clientId}</p>
                       </div>
-                      <div>
-                        <p>Monto</p>
-                        <p className="font-medium">${formatPrice(fiado.amount)}</p>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm text-gray-500 sm:grid-cols-3">
+                        <div>
+                          <p>Fiados</p>
+                          <p className="font-medium">{group.fiados.length}</p>
+                        </div>
+                        <div>
+                          <p>Total adeudado</p>
+                          <p className="font-medium">${formatPrice(clientTotal)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setExpandedClientIds((current) =>
+                                current.includes(group.clientId)
+                                  ? current.filter((id) => id !== group.clientId)
+                                  : [...current, group.clientId]
+                              )
+                            }}
+                            className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100 transition"
+                          >
+                            {isExpanded ? 'Ocultar detalles' : 'Ver detalles'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingFiadoId(null)
+                              setClient(group.client)
+                              setConcept('')
+                              setAmount('')
+                              setDueDate('')
+                              setStatus('Pendiente')
+                            }}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition"
+                          >
+                            Agregar concepto
+                          </button>
+                        </div>
                       </div>
                     </div>
+
+                    {isExpanded && (
+                      <div className="mt-5 space-y-4">
+                        {group.fiados.map((fiado) => (
+                          <div key={fiado.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-sm text-gray-500">Concepto</p>
+                                <p className="font-medium">{fiado.concept}</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 text-sm text-gray-500 sm:grid-cols-3">
+                                <div>
+                                  <p>Vence</p>
+                                  <p className="font-medium">{fiado.dueDate}</p>
+                                </div>
+                                <div>
+                                  <p>Monto</p>
+                                  <p className="font-medium">${formatPrice(fiado.amount)}</p>
+                                </div>
+                                <div>
+                                  <p>Status</p>
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                                      fiado.status === 'Pagado'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-yellow-100 text-yellow-700'
+                                    }`}
+                                  >
+                                    {fiado.status}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                              <button
+                                onClick={() => {
+                                  setEditingFiadoId(fiado.id)
+                                  setClient(fiado.client)
+                                  setConcept(fiado.concept)
+                                  setAmount(formatPrice(fiado.amount))
+                                  setDueDate(fiado.dueDate)
+                                  setStatus(fiado.status)
+                                }}
+                                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => setConfirmPaidId(fiado.id)}
+                                className="rounded-2xl bg-blue-600 px-4 py-2 text-white text-sm hover:bg-blue-700 transition"
+                              >
+                                Marcar pagado
+                              </button>
+                              <button
+                                onClick={() => removeFiado(fiado.id)}
+                                className="rounded-2xl border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-gray-600">{fiado.concept}</p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                          fiado.status === 'Pagado'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        {fiado.status}
-                      </span>
-
-                      <button
-                        onClick={() => setConfirmPaidId(fiado.id)}
-                        className="rounded-2xl bg-blue-600 px-4 py-2 text-white text-sm hover:bg-blue-700 transition"
-                      >
-                        Marcar pagado
-                      </button>
-
-                      <button
-                        onClick={() => removeFiado(fiado.id)}
-                        className="rounded-2xl border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

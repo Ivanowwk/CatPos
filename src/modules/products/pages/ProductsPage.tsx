@@ -8,6 +8,10 @@ import {
 } from '../components/ProductForm'
 
 import {
+  ExcelImportModal
+} from '../components/ExcelImportModal'
+
+import {
   useProductsStore
 } from '../store/products.store'
 
@@ -15,7 +19,8 @@ export const ProductsPage =
   () => {
     const {
       products,
-      removeProduct
+      removeProduct,
+      clearAllProducts
     } = useProductsStore()
 
     const [search, setSearch] =
@@ -23,6 +28,10 @@ export const ProductsPage =
 
     const [categoryFilter, setCategoryFilter] =
       useState('Todos')
+
+    const [selectedBarcode, setSelectedBarcode] = useState<string | undefined>(undefined)
+
+    const [excelModalOpen, setExcelModalOpen] = useState(false)
 
     const filteredProducts =
       useMemo(() => {
@@ -59,22 +68,24 @@ export const ProductsPage =
       ).format(value)
     }
 
+
     return (
-      <div
-        className="
-          p-6
-          min-h-screen
-          bg-gray-100
-        "
-      >
+      <>
         <div
           className="
-            grid
-            grid-cols-[380px_1fr]
-            gap-6
+            p-6
+            min-h-screen
+            bg-gray-100
           "
         >
-          <ProductForm />
+          <div
+            className="
+              grid
+              grid-cols-[380px_1fr]
+              gap-6
+            "
+          >
+          <ProductForm initialBarcode={selectedBarcode} />
 
           <div
             className="
@@ -137,6 +148,24 @@ export const ProductsPage =
                   "
                 />
 
+                <button
+                  onClick={() => setExcelModalOpen(true)}
+                  className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700"
+                >
+                  Importar Excel
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (window.confirm('¿Eliminar TODOS los productos? Esta acción no se puede deshacer.')) {
+                      clearAllProducts()
+                    }
+                  }}
+                  className="ml-2 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700"
+                >
+                  Eliminar todos
+                </button>
+
                 <select
                   value={categoryFilter}
                   onChange={(e) =>
@@ -166,183 +195,39 @@ export const ProductsPage =
             </div>
 
             <div className="space-y-3">
-              {filteredProducts.map(
-                product => (
-                  <div
-                    key={
-                      product.id
-                    }
-                    className="
-                      border
-                      rounded-2xl
-                      p-5
-                      flex
-                      items-center
-                      justify-between
-                      hover:border-blue-300
-                      transition
-                    "
-                  >
-                    <div>
-                      <h3
-                        className="
-                          text-lg
-                          font-bold
-                        "
-                      >
-                        {
-                          product.name
-                        }
-                      </h3>
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="border rounded-2xl p-5 flex items-center justify-between hover:border-blue-300 transition"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-start gap-4">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="w-16 h-16 rounded-md object-cover" />
+                      ) : null}
 
-                      <p
-                        className="
-                          text-sm
-                          text-gray-400
-                          mt-1
-                        "
-                      >
-                        Código:
-                        {' '}
-                        {
-                          product.barcode ||
-                          'Sin código'
-                        }
-                      </p>
-
-                      <div
-                        className="
-                          flex
-                          items-center
-                          gap-3
-                          mt-3
-                          flex-wrap
-                        "
-                      >
-                        <span
-                          className="
-                            bg-blue-100
-                            text-blue-700
-                            px-3
-                            py-1
-                            rounded-full
-                            text-sm
-                            font-medium
-                          "
-                        >
-                          Venta:
-                          {' '}
-                          $
-                          {formatPrice(
-                            product.salePrice
-                          )}
-                        </span>
-
-                        <span
-                          className="
-                            bg-gray-100
-                            text-gray-700
-                            px-3
-                            py-1
-                            rounded-full
-                            text-sm
-                          "
-                        >
-                          Compra:
-                          {' '}
-                          $
-                          {formatPrice(
-                            product.costPrice
-                          )}
-                        </span>
-
-                        <span
-                          className="
-                            bg-green-100
-                            text-green-700
-                            px-3
-                            py-1
-                            rounded-full
-                            text-sm
-                          "
-                        >
-                          +
-                          {
-                            product.profitMargin
-                          }
-                          %
-                        </span>
-
-                        <span
-                          className="
-                            bg-slate-100
-                            text-slate-700
-                            px-3
-                            py-1
-                            rounded-full
-                            text-sm
-                            font-medium
-                          "
-                        >
-                          {
-                            product.category ||
-                            'General'
-                          }
-                        </span>
-
-                        <span
-                          className={`
-                            px-3
-                            py-1
-                            rounded-full
-                            text-sm
-                            font-medium
-
-                            ${
-                              product.stock <=
-                              5
-                                ? `
-                                  bg-red-100
-                                  text-red-700
-                                `
-                                : `
-                                  bg-yellow-100
-                                  text-yellow-700
-                                `
-                            }
-                          `}
-                        >
-                          Stock:
-                          {' '}
-                          {
-                            product.stock
-                          }
-                        </span>
+                      <div>
+                        <h3 className="text-lg font-bold">{product.name}</h3>
+                        <p className="text-sm text-gray-400 mt-1">Código: {product.barcode || 'Sin código'}</p>
+                        {product.brand ? <p className="text-sm text-gray-500 mt-1">Marca: {product.brand}</p> : null}
                       </div>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        removeProduct(
-                          product.id
-                        )
-                      }
-                      className="
-                        bg-red-500
-                        hover:bg-red-600
-                        transition
-                        text-white
-                        px-5
-                        py-3
-                        rounded-xl
-                        font-semibold
-                      "
-                    >
-                      Eliminar
-                    </button>
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">Venta: $ {formatPrice(product.salePrice)}</span>
+                      <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">Compra: $ {formatPrice(product.costPrice)}</span>
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">+{product.profitMargin}%</span>
+                      <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-medium">{product.category || 'General'}</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${product.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>Stock: {product.stock}</span>
+                    </div>
                   </div>
-                )
-              )}
+
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedBarcode(product.barcode || product.id)} className="bg-blue-500 hover:bg-blue-600 transition text-white px-4 py-2 rounded-xl font-semibold">Editar</button>
+                    <button onClick={() => removeProduct(product.id)} className="bg-red-500 hover:bg-red-600 transition text-white px-4 py-2 rounded-xl font-semibold">Eliminar</button>
+                  </div>
+                </div>
+              ))}
 
               {filteredProducts.length ===
                 0 && (
@@ -363,6 +248,12 @@ export const ProductsPage =
             </div>
           </div>
         </div>
-      </div>
+        </div>
+
+        <ExcelImportModal
+          open={excelModalOpen}
+          onClose={() => setExcelModalOpen(false)}
+        />
+      </>
     )
   }

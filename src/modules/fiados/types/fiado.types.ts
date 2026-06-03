@@ -3,6 +3,8 @@ export interface Fiado {
 
   client: string
 
+  clientId: string
+
   concept: string
 
   amount: number

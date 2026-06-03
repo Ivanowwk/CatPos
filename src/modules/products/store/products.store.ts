@@ -16,6 +16,10 @@ export interface Product {
   barcode?: string
 
   category?: string
+  brand?: string
+  image?: string | null
+  quantity?: string | null
+  nutriments?: Record<string, any>
 }
 
 interface ProductsStore {
@@ -33,6 +37,8 @@ interface ProductsStore {
   removeProduct: (
     id: string
   ) => void
+
+  clearAllProducts: () => void
 }
 
 export const useProductsStore =
@@ -43,12 +49,24 @@ export const useProductsStore =
       addProduct: (
         product
       ) =>
-        set((state) => ({
-          products: [
-            ...state.products,
-            product
-          ]
-        })),
+        set((state) => {
+          const exists = state.products.some(
+            (item) =>
+              item.id === product.id ||
+              (product.barcode && item.barcode === product.barcode)
+          )
+
+          if (exists) {
+            return state
+          }
+
+          return {
+            products: [
+              ...state.products,
+              product
+            ]
+          }
+        }),
 
       updateProduct: (
         id,
@@ -72,6 +90,11 @@ export const useProductsStore =
             state.products.filter(
               p => p.id !== id
             )
+        })),
+
+      clearAllProducts: () =>
+        set(() => ({
+          products: []
         }))
     })
   )

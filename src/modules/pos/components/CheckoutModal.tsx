@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { v4 as uuid } from 'uuid'
 
 import { useSalesStore } from '../../sales/store/sales.store'
@@ -34,6 +34,9 @@ export const CheckoutModal = ({
     paymentMethod,
     setPaymentMethod
   ] = useState('Efectivo')
+
+  const [showSuccess, setShowSuccess] =
+    useState(false)
 
   const total = useMemo(() => {
     return items.reduce(
@@ -81,6 +84,28 @@ export const CheckoutModal = ({
       Number(numbers)
     )
   }
+
+  useEffect(() => {
+    if (!open) return
+
+    const handler = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+
+      const target = event.target as HTMLElement | null
+      if (
+        target?.closest('input, textarea, select') ||
+        target?.isContentEditable
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      finishSale()
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, items.length, paymentMethod, numericReceived, total])
 
   const finishSale = () => {
     if (
@@ -137,7 +162,12 @@ export const CheckoutModal = ({
       'Efectivo'
     )
 
-    onClose()
+    setShowSuccess(true)
+
+    setTimeout(() => {
+      setShowSuccess(false)
+      onClose()
+    }, 2000)
   }
 
   if (!open) return null
@@ -154,15 +184,61 @@ export const CheckoutModal = ({
         z-50
       "
     >
-      <div
-        className="
-          bg-white
-          w-[500px]
-          rounded-3xl
-          p-6
-          shadow-2xl
-        "
-      >
+      {showSuccess ? (
+        <div
+          className="
+            bg-white
+            w-[500px]
+            rounded-3xl
+            p-6
+            shadow-2xl
+            flex
+            flex-col
+            items-center
+            justify-center
+            py-16
+          "
+        >
+          <div
+            className="
+              text-6xl
+              text-green-600
+              mb-4
+            "
+          >
+            ✓
+          </div>
+
+          <h2
+            className="
+              text-3xl
+              font-bold
+              text-center
+              mb-2
+            "
+          >
+            ¡Venta realizada!
+          </h2>
+
+          <p
+            className="
+              text-gray-500
+              text-center
+            "
+          >
+            La venta se ha completado exitosamente
+          </p>
+        </div>
+      ) : (
+        <div
+          className="
+            bg-white
+            w-[500px]
+            rounded-3xl
+            p-6
+            shadow-2xl
+          "
+        >
         <div
           className="
             flex
@@ -171,14 +247,25 @@ export const CheckoutModal = ({
             mb-6
           "
         >
-          <h2
-            className="
-              text-3xl
-              font-bold
-            "
-          >
-            Cobrar
-          </h2>
+          <div>
+            <h2
+              className="
+                text-3xl
+                font-bold
+              "
+            >
+              Cobrar
+            </h2>
+            <p
+              className="
+                text-sm
+                text-gray-500
+                mt-1
+              "
+            >
+              Presiona Espacio para finalizar
+            </p>
+          </div>
 
           <button
             onClick={() => {
@@ -402,7 +489,8 @@ export const CheckoutModal = ({
             Finalizar venta
           </button>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   )
 }

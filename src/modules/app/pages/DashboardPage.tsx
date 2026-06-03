@@ -17,30 +17,15 @@ export const DashboardPage = ({ onNavigate }: Props) => {
   const { sales } = useSalesStore()
   const { receipts, suppliers } = useSuppliersStore()
 
-  const currentDate = new Date()
-  const todayKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
-  const currentDayLabel = currentDate.toLocaleDateString('es-CO', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long'
-  })
+  const weekdays = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 
-  const todayReceipts = useMemo(
-    () => receipts.filter((receipt) => receipt.receivedAt === todayKey),
-    [receipts, todayKey]
-  )
-
-  const upcomingReceipts = useMemo(
+  const weeklySchedule = useMemo(
     () =>
-      receipts
-        .filter((receipt) => receipt.receivedAt >= todayKey)
-        .sort((a, b) => {
-          const dateA = new Date(`${a.receivedAt}T${a.deliveryTime || '00:00'}`)
-          const dateB = new Date(`${b.receivedAt}T${b.deliveryTime || '00:00'}`)
-          return dateA.getTime() - dateB.getTime()
-        })
-        .slice(0, 4),
-    [receipts, todayKey]
+      weekdays.map((day) => ({
+        day,
+        receipts: receipts.filter((receipt) => receipt.deliveryDays.includes(day))
+      })),
+    [receipts]
   )
 
   const lowStockCount = useMemo(
@@ -106,70 +91,46 @@ export const DashboardPage = ({ onNavigate }: Props) => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="bg-white rounded-3xl border p-6 shadow-sm">
+        <div className="bg-white rounded-3xl border p-6 shadow-sm xl:col-span-2">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-gray-500">Horario</p>
-              <h2 className="text-2xl font-bold">Pedidos para hoy</h2>
-              <p className="text-sm text-gray-500">Hoy es {currentDayLabel}</p>
+              <h2 className="text-2xl font-bold">Pedidos de la semana</h2>
+              <p className="text-sm text-gray-500">Resumen de pedidos programados por día.</p>
             </div>
-            <span className="rounded-3xl bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-              {todayReceipts.length} pedido(s)
+            <span className="rounded-3xl bg-blue-50 border-0 px-4 py-2 text-sm font-semibold text-blue-700">
+              {receipts.length} pedido(s)
             </span>
           </div>
 
-          {todayReceipts.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-              No hay pedidos programados para hoy.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {todayReceipts.map((receipt) => (
-                <div
-                  key={receipt.id}
-                  className="rounded-3xl border p-4 bg-slate-50"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Proveedor</p>
-                      <p className="font-semibold">{receipt.supplierName}</p>
-                    </div>
-                    <span className="rounded-2xl bg-blue-100 px-3 py-1 text-sm text-blue-700">
-                      {receipt.deliveryTime}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-gray-500">Factura {receipt.invoiceNumber}</p>
+          <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+            {weeklySchedule.map((daySchedule) => (
+              <div key={daySchedule.day} className="rounded-3xl border p-4 bg-slate-50 min-h-[180px]">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="font-semibold">{daySchedule.day}</p>
+                  <span className="rounded-full bg-blue-100 border-0 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {daySchedule.receipts.length} pedido(s)
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {upcomingReceipts.length > 0 && (
-            <div className="mt-6">
-              <p className="text-sm uppercase tracking-[0.2em] text-gray-500">
-                Próximos pedidos
-              </p>
-              <div className="space-y-3 mt-3">
-                {upcomingReceipts.map((receipt) => (
-                  <div
-                    key={receipt.id}
-                    className="rounded-3xl border p-4 bg-slate-50"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">{receipt.receivedAt}</p>
+                {daySchedule.receipts.length === 0 ? (
+                  <p className="mt-3 text-sm text-gray-500">Sin pedidos</p>
+                ) : (
+                  <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                    {daySchedule.receipts.slice(0, 2).map((receipt) => (
+                      <li key={receipt.id} className="rounded-2xl bg-white p-3 border border-slate-200">
                         <p className="font-semibold">{receipt.supplierName}</p>
-                      </div>
-                      <span className="rounded-2xl bg-slate-100 px-3 py-1 text-sm text-slate-700">
-                        {receipt.deliveryTime}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500">Factura {receipt.invoiceNumber}</p>
-                  </div>
-                ))}
+                        <p className="text-slate-500">Fac {receipt.invoiceNumber}</p>
+                        <p className="text-slate-500">{receipt.deliveryTime}</p>
+                      </li>
+                    ))}
+                    {daySchedule.receipts.length > 2 && (
+                      <p className="text-xs text-slate-500">+{daySchedule.receipts.length - 2} más pedidos</p>
+                    )}
+                  </ul>
+                )}
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </div>
 

@@ -40,7 +40,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b bg-white/80 backdrop-blur-xl sticky top-0 z-40">
+      <header className="bg-white/80 border-slate-200 border-b backdrop-blur-xl sticky top-0 z-40">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.25em] text-slate-500">CatPos</p>
@@ -63,7 +63,9 @@ function App() {
             ))}
           </div>
 
-          <ClockBadge />
+          <div className="flex items-center gap-2">
+            <ClockBadge />
+          </div>
 
           <div className="flex flex-wrap gap-3 text-sm text-slate-600">
             <span>Productos: {productsCount}</span>

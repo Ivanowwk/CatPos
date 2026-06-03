@@ -1,3 +1,11 @@
+export interface SupplierDeliveryDay {
+  day: string
+  label: string
+  active: boolean
+  from: string
+  to: string
+}
+
 export interface Supplier {
   id: string
 
@@ -5,7 +13,7 @@ export interface Supplier {
 
   contact: string
 
-  deliverySchedule: string
+  deliverySchedule: SupplierDeliveryDay[]
 }
 
 export interface SupplierReceiptItem {
@@ -37,7 +45,11 @@ export interface SupplierReceipt {
 
   deliveryTime: string
 
+  deliveryDays: string[]
+
   status: 'Pendiente' | 'Recibido'
+
+  invoicePhoto?: string
 
   items: SupplierReceiptItem[]
 
