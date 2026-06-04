@@ -7,6 +7,8 @@ export interface Fiado {
 
   concept: string
 
+  items?: string[]
+
   amount: number
 
   dueDate: string

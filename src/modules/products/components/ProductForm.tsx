@@ -198,11 +198,8 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
 
         <input
           value={name}
-          onChange={(e) =>
-            setName(
-              e.target.value
-            )
-          }
+          onChange={(e) => setName(e.target.value.slice(0, 100))}
+          maxLength={100}
           placeholder="Coca-Cola"
           className="
             w-full
@@ -228,14 +225,9 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
 
         <input
           value={barcode}
-          onFocus={(e) =>
-            e.target.select()
-          }
-          onChange={(e) =>
-            setBarcode(
-              e.target.value
-            )
-          }
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => setBarcode(e.target.value.slice(0, 30))}
+          maxLength={30}
           placeholder="7702001045603"
           className="
             w-full
@@ -296,16 +288,11 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
           type="text"
           inputMode="numeric"
           value={costPrice}
-          onFocus={(e) =>
-            e.target.select()
-          }
-          onChange={(e) =>
-            setCostPrice(
-              formatNumber(
-                e.target.value
-              )
-            )
-          }
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const numbers = e.target.value.replace(/\D/g, '').slice(0, 9)
+            setCostPrice(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+          }}
           placeholder="5.000"
           className="
             w-full
@@ -332,14 +319,14 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
         <input
           type="number"
           value={profitMargin}
-          onFocus={(e) =>
-            e.target.select()
-          }
-          onChange={(e) =>
-            setProfitMargin(
-              e.target.value
-            )
-          }
+          min={0}
+          max={500}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const n = e.target.value.replace(/\D/g, '').slice(0, 3)
+            const num = n ? Math.min(500, Number(n)) : 0
+            setProfitMargin(String(num))
+          }}
           placeholder="30"
           className="
             w-full
@@ -374,16 +361,11 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
           type="text"
           inputMode="numeric"
           value={stock}
-          onFocus={(e) =>
-            e.target.select()
-          }
-          onChange={(e) =>
-            setStock(
-              formatNumber(
-                e.target.value
-              )
-            )
-          }
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const numbers = e.target.value.replace(/\D/g, '').slice(0, 7)
+            setStock(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+          }}
           placeholder="10"
           className="
             w-full

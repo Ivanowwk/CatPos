@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 
 import { useFiadosStore } from '../store/fiados.store'
@@ -15,6 +15,7 @@ export const FiadosPage = () => {
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [status, setStatus] = useState<typeof statusOptions[number]>('Pendiente')
+  const [items, setItems] = useState('')
   const [search, setSearch] = useState('')
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [editingFiadoId, setEditingFiadoId] = useState<string | null>(null)
@@ -43,7 +44,9 @@ export const FiadosPage = () => {
             .includes(search.toLowerCase()) ||
           fiado.concept
             .toLowerCase()
-            .includes(search.toLowerCase())
+            .includes(search.toLowerCase()) ||
+          (fiado.items ?? [])
+            .some((item) => item.toLowerCase().includes(search.toLowerCase()))
       ),
     [fiados, search]
   )
@@ -73,6 +76,16 @@ export const FiadosPage = () => {
     ? fiados.find((fiado) => fiado.id === editingFiadoId)
     : null
 
+  useEffect(() => {
+    if (!selectedFiado) return
+    setItems(selectedFiado.items?.join('\n') ?? '')
+    setClient(selectedFiado.client)
+    setConcept(selectedFiado.concept)
+    setAmount(formatNumber(String(selectedFiado.amount)))
+    setDueDate(selectedFiado.dueDate)
+    setStatus(selectedFiado.status)
+  }, [selectedFiado])
+
   const totalOwed = useMemo(
     () => fiados.reduce((acc, fiado) => acc + fiado.amount, 0),
     [fiados]
@@ -89,11 +102,17 @@ export const FiadosPage = () => {
     const clientId =
       existingClient?.clientId ?? selectedFiado?.clientId ?? uuid()
 
+    const parsedItems = items
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+
     if (editingFiadoId && selectedFiado) {
       updateFiado(editingFiadoId, {
         client,
         clientId,
         concept,
+        items: parsedItems,
         amount: numericAmount,
         dueDate,
         status
@@ -104,6 +123,7 @@ export const FiadosPage = () => {
         client,
         clientId,
         concept,
+        items: parsedItems,
         amount: numericAmount,
         dueDate,
         status,
@@ -113,6 +133,7 @@ export const FiadosPage = () => {
 
     setClient('')
     setConcept('')
+    setItems('')
     setAmount('')
     setDueDate('')
     setStatus('Pendiente')
@@ -161,7 +182,8 @@ export const FiadosPage = () => {
             <p className="text-sm text-gray-500 mb-2">Cliente</p>
             <input
               value={client}
-              onChange={(e) => setClient(e.target.value)}
+                onChange={(e) => setClient(e.target.value.slice(0, 100))}
+                maxLength={100}
               placeholder="Juan Pérez"
               className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
             />
@@ -178,11 +200,23 @@ export const FiadosPage = () => {
           <div>
             <p className="text-sm text-gray-500 mb-2">Concepto</p>
             <input
-              value={concept}
-              onChange={(e) => setConcept(e.target.value)}
+                value={concept}
+                onChange={(e) => setConcept(e.target.value.slice(0, 200))}
+                maxLength={200}
               placeholder="Compra de abarrotes"
               className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
             />
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-2">Implementos / items comprados</p>
+            <textarea
+              value={items}
+              onChange={(e) => setItems(e.target.value)}
+              placeholder="1 libra de arroz\n2 rollos de papel\n1 kilo de azúcar"
+              className="w-full min-h-[120px] resize-none border rounded-2xl p-3 outline-none focus:border-blue-500"
+            />
+            <p className="mt-2 text-xs text-gray-400">Agrega cada producto en una línea para mantener el historial claro.</p>
           </div>
 
           <div>
@@ -190,7 +224,10 @@ export const FiadosPage = () => {
             <input
               value={amount}
               onFocus={(e) => e.target.select()}
-              onChange={(e) => setAmount(formatNumber(e.target.value))}
+              onChange={(e) => {
+                const numbers = e.target.value.replace(/\D/g, '').slice(0, 12)
+                setAmount(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+              }}
               placeholder="50.000"
               className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
             />
@@ -234,6 +271,7 @@ export const FiadosPage = () => {
                   setEditingFiadoId(null)
                   setClient('')
                   setConcept('')
+                  setItems('')
                   setAmount('')
                   setDueDate('')
                   setStatus('Pendiente')
@@ -352,6 +390,21 @@ export const FiadosPage = () => {
                               </div>
                             </div>
 
+                            {(fiado.items ?? []).length > 0 ? (
+                              <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
+                                <p className="text-sm text-gray-500 mb-2">Implementos comprados</p>
+                                <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                  {(fiado.items ?? []).map((item, index) => (
+                                    <li key={`${fiado.id}-item-${index}`}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : (
+                              <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+                                No se registraron implementos para este fiado.
+                              </div>
+                            )}
+
                             <div className="mt-4 flex flex-wrap items-center gap-3">
                               <button
                                 onClick={() => {
@@ -367,10 +420,15 @@ export const FiadosPage = () => {
                                 Editar
                               </button>
                               <button
-                                onClick={() => setConfirmPaidId(fiado.id)}
-                                className="rounded-2xl bg-blue-600 px-4 py-2 text-white text-sm hover:bg-blue-700 transition"
+                                onClick={() => fiado.status !== 'Pagado' && setConfirmPaidId(fiado.id)}
+                                disabled={fiado.status === 'Pagado'}
+                                className={`rounded-2xl px-4 py-2 text-sm transition ${
+                                  fiado.status === 'Pagado'
+                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
                               >
-                                Marcar pagado
+                                {fiado.status === 'Pagado' ? 'Pagado' : 'Marcar pagado'}
                               </button>
                               <button
                                 onClick={() => removeFiado(fiado.id)}

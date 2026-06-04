@@ -74,7 +74,8 @@ export const QuickProductModal = ({ open, onClose, initial, onSaved }: Props) =>
           <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del producto</label>
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value.slice(0, 100))}
+            maxLength={100}
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
             placeholder="Coca-Cola"
           />
@@ -108,7 +109,10 @@ export const QuickProductModal = ({ open, onClose, initial, onSaved }: Props) =>
           <label className="block text-sm font-medium text-gray-700 mb-2">Precio de compra</label>
           <input
             value={costPrice}
-            onChange={(e) => setCostPrice(e.target.value)}
+            onChange={(e) => {
+              const numbers = e.target.value.replace(/\D/g, '').slice(0, 9)
+              setCostPrice(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+            }}
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none"
             placeholder="5.000"
           />
@@ -118,7 +122,11 @@ export const QuickProductModal = ({ open, onClose, initial, onSaved }: Props) =>
           <label className="block text-sm font-medium text-gray-700 mb-2">Ganancia %</label>
           <input
             value={profitMargin}
-            onChange={(e) => setProfitMargin(e.target.value)}
+            onChange={(e) => {
+              const n = e.target.value.replace(/\D/g, '').slice(0, 3)
+              const num = n ? Math.min(500, Number(n)) : 0
+              setProfitMargin(String(num))
+            }}
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none"
             placeholder="30"
           />
@@ -128,7 +136,10 @@ export const QuickProductModal = ({ open, onClose, initial, onSaved }: Props) =>
           <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad / Stock</label>
           <input
             value={stock}
-            onChange={(e) => setStock(e.target.value)}
+            onChange={(e) => {
+              const numbers = e.target.value.replace(/\D/g, '').slice(0, 7)
+              setStock(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+            }}
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none"
             placeholder="10"
           />

@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -8,20 +8,114 @@ datasource db {
 
 model Product {
   id             String   @id @default(cuid())
-
   name           String
-
   costPrice      Float
-
   profitMargin   Float
-
   salePrice      Float
-
   stock          Int
-
-  barcode        String?
-
+  barcode        String?   @unique
   category       String?
+  brand          String?
+  image          String?
+  createdAt      DateTime  @default(now())
+  receiptItems   SupplierReceiptItem[]
+  saleItems      SaleItem[]
+}
 
+model Supplier {
+  id             String   @id @default(cuid())
+  name           String
+  contact        String
   createdAt      DateTime @default(now())
+  deliveryDays   SupplierDeliveryDay[]
+  receipts       SupplierReceipt[]
+}
+
+model SupplierDeliveryDay {
+  id          String   @id @default(cuid())
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  day         String
+  label       String
+  active      Boolean
+  from        String
+  to          String
+}
+
+model SupplierReceipt {
+  id              String                 @id @default(cuid())
+  supplier        Supplier               @relation(fields: [supplierId], references: [id])
+  supplierId      String
+  supplierName    String
+  invoiceNumber   String
+  receivedAt      DateTime
+  deliveryTime    String
+  deliveryDays    String
+  status          String
+  invoicePhotoUrl String?
+  createdAt       DateTime               @default(now())
+  items           SupplierReceiptItem[]
+}
+
+model SupplierReceiptItem {
+  id         String          @id @default(cuid())
+  receipt    SupplierReceipt @relation(fields: [receiptId], references: [id])
+  receiptId  String
+  product    Product?        @relation(fields: [productId], references: [id])
+  productId  String?
+  name       String
+  barcode    String?
+  category   String?
+  quantity   Int
+  unitCost   Float
+  totalCost  Float
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  createdAt     DateTime   @default(now())
+  paymentMethod String
+  total         Float
+  received      Float
+  change        Float
+  items         SaleItem[]
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  sale      Sale     @relation(fields: [saleId], references:[id])
+  saleId    String
+  product   Product  @relation(fields:[productId], references:[id])
+  productId String
+  name      String
+  quantity  Int
+  salePrice Float
+}
+
+model Cliente {
+  id        String  @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  fiados    Fiado[]
+}
+
+model Fiado {
+  id         String   @id @default(cuid())
+  client     Cliente? @relation(fields: [clientId], references: [id])
+  clientId   String?
+  clientName String
+  concept    String
+  amount     Float
+  dueDate    DateTime
+  status     String
+  createdAt  DateTime @default(now())
+  abonos     Abono[]
+}
+
+model Abono {
+  id        String   @id @default(cuid())
+  fiado     Fiado    @relation(fields: [fiadoId], references: [id])
+  fiadoId   String
+  amount    Float
+  createdAt DateTime @default(now())
 }

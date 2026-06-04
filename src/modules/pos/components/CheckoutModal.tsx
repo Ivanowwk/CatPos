@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { v4 as uuid } from 'uuid'
 
 import { useSalesStore } from '../../sales/store/sales.store'
+import { useFiadosStore } from '../../fiados/store/fiados.store'
 import { useCartStore } from '../store/cart.store'
 import { useProductsStore } from '../../products/store/products.store'
 
@@ -24,6 +25,11 @@ export const CheckoutModal = ({
   } = useSalesStore()
 
   const {
+    addFiado,
+    fiados
+  } = useFiadosStore()
+
+  const {
     updateProduct
   } = useProductsStore()
 
@@ -34,6 +40,10 @@ export const CheckoutModal = ({
     paymentMethod,
     setPaymentMethod
   ] = useState('Efectivo')
+
+  const [client, setClient] = useState('')
+  const [concept, setConcept] = useState('')
+  const [dueDate, setDueDate] = useState('')
 
   const [showSuccess, setShowSuccess] =
     useState(false)
@@ -67,24 +77,6 @@ export const CheckoutModal = ({
     ).format(value)
   }
 
-  const formatNumber = (
-    value: string
-  ) => {
-    const numbers =
-      value.replace(
-        /\D/g,
-        ''
-      )
-
-    if (!numbers) return ''
-
-    return new Intl.NumberFormat(
-      'es-CO'
-    ).format(
-      Number(numbers)
-    )
-  }
-
   useEffect(() => {
     if (!open) return
 
@@ -107,9 +99,14 @@ export const CheckoutModal = ({
     return () => window.removeEventListener('keydown', handler)
   }, [open, items.length, paymentMethod, numericReceived, total])
 
+  const hasStockIssue = items.some(
+    (item) => item.quantity > item.stock
+  )
+
   const finishSale = () => {
     if (
-      items.length === 0
+      items.length === 0 ||
+      hasStockIssue
     ) {
       return
     }
@@ -123,11 +120,51 @@ export const CheckoutModal = ({
       return
     }
 
+    if (
+      paymentMethod === 'Fiado' &&
+      (!client.trim() ||
+        !concept.trim() ||
+        !dueDate.trim())
+    ) {
+      return
+    }
+
     const saleReceived =
       paymentMethod ===
       'Efectivo'
         ? numericReceived
+        : paymentMethod === 'Fiado'
+        ? 0
         : total
+
+    const saleChange =
+      paymentMethod === 'Efectivo'
+        ? saleReceived - total
+        : 0
+
+    if (paymentMethod === 'Fiado') {
+      const normalizedClient = client.trim().toLowerCase()
+      const existingClient = fiados.find(
+        (fiado) =>
+          fiado.client.toLowerCase() ===
+          normalizedClient
+      )
+      const clientId = existingClient?.clientId ?? uuid()
+
+      const fiadoItems = items.map((item) => `${item.quantity} x ${item.name}`)
+
+      addFiado({
+        id: uuid(),
+        client: client.trim(),
+        clientId,
+        concept: concept.trim(),
+        items: fiadoItems,
+        amount: total,
+        dueDate,
+        status: 'Pendiente',
+        createdAt: new Date().toISOString()
+      })
+    }
 
     addSale({
       id: uuid(),
@@ -143,7 +180,7 @@ export const CheckoutModal = ({
         saleReceived,
 
       change:
-        saleReceived - total,
+        saleChange,
 
       items
     })
@@ -157,6 +194,9 @@ export const CheckoutModal = ({
     clearCart()
 
     setReceived('')
+    setClient('')
+    setConcept('')
+    setDueDate('')
 
     setPaymentMethod(
       'Efectivo'
@@ -363,8 +403,56 @@ export const CheckoutModal = ({
               <option>
                 Tarjeta
               </option>
+
+              <option>
+                Fiado
+              </option>
             </select>
           </div>
+
+          {paymentMethod === 'Fiado' && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Cliente</p>
+                <input
+                  value={client}
+                  onChange={(e) => setClient(e.target.value.slice(0, 100))}
+                  maxLength={100}
+                  placeholder="Nombre del cliente"
+                  className="w-full border rounded-xl p-4 outline-none"
+                />
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Concepto</p>
+                <input
+                  value={concept}
+                  onChange={(e) => setConcept(e.target.value.slice(0, 200))}
+                  maxLength={200}
+                  placeholder="Descripción del fiado"
+                  className="w-full border rounded-xl p-4 outline-none"
+                />
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Fecha límite para pagar</p>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) =>
+                    setDueDate(e.target.value)
+                  }
+                  className="w-full border rounded-xl p-4 outline-none"
+                />
+              </div>
+
+              <div className="rounded-2xl bg-yellow-50 p-4 text-yellow-700">
+                <p className="text-sm">
+                  El fiado quedará registrado como pendiente y se sumará al cliente si ya existe.
+                </p>
+              </div>
+            </div>
+          )}
 
           {paymentMethod ===
             'Efectivo' && (
@@ -381,20 +469,12 @@ export const CheckoutModal = ({
                 </p>
 
                 <input
-                  value={
-                    received
-                  }
-                  onFocus={(e) =>
-                    e.target.select()
-                  }
-                  onChange={(e) =>
-                    setReceived(
-                      formatNumber(
-                        e.target
-                          .value
-                      )
-                    )
-                  }
+                  value={received}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const numbers = e.target.value.replace(/\D/g, '').slice(0, 12)
+                    setReceived(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+                  }}
                   placeholder="20.000"
                   className="
                     w-full
@@ -406,6 +486,11 @@ export const CheckoutModal = ({
                 />
               </div>
 
+              {hasStockIssue && (
+                <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+                  La cantidad de algún producto supera el stock disponible. Ajusta el carrito antes de continuar.
+                </div>
+              )}
               <div
                 className={`
                   rounded-2xl
@@ -466,6 +551,12 @@ export const CheckoutModal = ({
                   'Efectivo' &&
                 numericReceived <
                   total
+              ) ||
+              (
+                paymentMethod === 'Fiado' &&
+                (!client.trim() ||
+                  !concept.trim() ||
+                  !dueDate.trim())
               )
             }
             onClick={

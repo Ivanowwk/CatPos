@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useState } from 'react'
+import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 
 import { useProductsStore } from '../../products/store/products.store'
@@ -40,10 +40,23 @@ export const SuppliersPage = () => {
   const [receivedAt, setReceivedAt] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
   const [deliveryDays, setDeliveryDays] = useState<string[]>([])
-  const [invoicePhoto, setInvoicePhoto] = useState('')
+  const [invoicePhotoUrl, setInvoicePhotoUrl] = useState('')
   const [receiptStatus, setReceiptStatus] = useState<typeof statusOptions[number]>('Pendiente')
 
   const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    const supplier = suppliers.find((s) => s.id === selectedSupplier)
+    if (supplier) {
+      const days = supplier.deliverySchedule.filter((d) => d.active).map((d) => d.label)
+      setDeliveryDays(days)
+      const firstActive = supplier.deliverySchedule.find((d) => d.active)
+      setDeliveryTime(firstActive ? firstActive.from : '')
+    } else {
+      setDeliveryDays([])
+      setDeliveryTime('')
+    }
+  }, [selectedSupplier, suppliers])
 
   const filteredReceipts = useMemo(
     () =>
@@ -80,17 +93,45 @@ export const SuppliersPage = () => {
     )
   }
 
-  const handleInvoicePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = async (file: File, maxWidth = 1200, quality = 0.8) => {
+    const imageBitmap = await createImageBitmap(file)
+    const scale = Math.min(1, maxWidth / imageBitmap.width)
+    const width = Math.round(imageBitmap.width * scale)
+    const height = Math.round(imageBitmap.height * scale)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+
+    ctx.drawImage(imageBitmap, 0, 0, width, height)
+
+    return new Promise<File>((resolve) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: file.type }))
+          } else {
+            resolve(file)
+          }
+        },
+        file.type,
+        quality
+      )
+    })
+  }
+
+  const handleInvoicePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setInvoicePhoto(reader.result)
-      }
-    }
-    reader.readAsDataURL(file)
+    const compressedFile = await compressImage(file)
+    const objectUrl = URL.createObjectURL(compressedFile)
+
+    setInvoicePhotoUrl(objectUrl)
+    // en producción, este archivo debe subirse a un servidor/almacenamiento externo
+    // y guardarse en la base de datos sólo la URL resultante
   }
 
   const submitSupplier = () => {
@@ -117,7 +158,7 @@ export const SuppliersPage = () => {
   }
 
   const submitReceipt = () => {
-    if (!selectedSupplier || !invoiceNumber || !receivedAt || !deliveryTime) return
+    if (!selectedSupplier || !invoiceNumber || !receivedAt) return
 
     const supplier = suppliers.find((supplier) => supplier.id === selectedSupplier)
     if (!supplier) return
@@ -130,8 +171,8 @@ export const SuppliersPage = () => {
       receivedAt,
       deliveryTime,
       deliveryDays,
-      status: receiptStatus,
-      invoicePhoto,
+      status: invoicePhotoUrl ? 'Recibido' : receiptStatus,
+      invoicePhotoUrl,
       items: [],
       total: 0
     })
@@ -140,7 +181,7 @@ export const SuppliersPage = () => {
     setReceivedAt('')
     setDeliveryTime('')
     setDeliveryDays([])
-    setInvoicePhoto('')
+    setInvoicePhotoUrl('')
     setReceiptStatus('Pendiente')
   }
 
@@ -170,7 +211,8 @@ export const SuppliersPage = () => {
               <p className="text-sm text-gray-500 mb-2">Nombre del proveedor</p>
               <input
                 value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
+                onChange={(e) => setSupplierName(e.target.value.slice(0, 100))}
+                maxLength={100}
                 placeholder="Distribuciones ABC"
                 className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
               />
@@ -179,7 +221,8 @@ export const SuppliersPage = () => {
               <p className="text-sm text-gray-500 mb-2">Contacto</p>
               <input
                 value={supplierContact}
-                onChange={(e) => setSupplierContact(e.target.value)}
+                onChange={(e) => setSupplierContact(e.target.value.slice(0, 20))}
+                maxLength={20}
                 placeholder="319 555 0123"
                 className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
               />
@@ -231,6 +274,7 @@ export const SuppliersPage = () => {
 
           <div className="bg-white rounded-3xl border shadow-sm p-6 space-y-5">
             <h2 className="text-2xl font-bold">Registrar factura</h2>
+            
             <div>
               <p className="text-sm text-gray-500 mb-2">Proveedor</p>
               <select
@@ -250,12 +294,13 @@ export const SuppliersPage = () => {
               <p className="text-sm text-gray-500 mb-2">Número de factura</p>
               <input
                 value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
+                onChange={(e) => setInvoiceNumber(e.target.value.slice(0, 30))}
+                maxLength={30}
                 placeholder="FAC-2026-001"
                 className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-sm text-gray-500 mb-2">Fecha recibida</p>
                 <input
@@ -266,12 +311,12 @@ export const SuppliersPage = () => {
                 />
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-2">Hora de entrega</p>
+                <p className="text-sm text-gray-500 mb-2">Hora de entrega (según proveedor)</p>
                 <input
                   type="time"
                   value={deliveryTime}
-                  onChange={(e) => setDeliveryTime(e.target.value)}
-                  className="w-full border rounded-xl p-3 outline-none focus:border-blue-500"
+                  disabled
+                  className="w-full border rounded-xl p-3 outline-none bg-gray-50 disabled:opacity-90"
                 />
               </div>
             </div>
@@ -291,28 +336,42 @@ export const SuppliersPage = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-2">Días programados</p>
-              <div className="grid grid-cols-3 gap-2">
-                {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() =>
-                      setDeliveryDays((current) =>
-                        current.includes(day)
-                          ? current.filter((d) => d !== day)
-                          : [...current, day]
-                      )
-                    }
-                    className={`rounded-2xl border px-3 py-2 text-sm font-medium transition ${
-                      deliveryDays.includes(day)
-                        ? 'border-blue-600 bg-blue-100 text-blue-700'
-                        : 'border-slate-300 bg-white text-slate-700'
-                    }`}
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
+              {selectedSupplier ? (
+                <div className="flex flex-wrap gap-2">
+                  {deliveryDays.length > 0 ? (
+                    deliveryDays.map((d) => (
+                      <div key={d} className="rounded-full border px-3 py-1 text-sm bg-blue-50 text-blue-700">
+                        {d}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">El proveedor no tiene días activos.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() =>
+                        setDeliveryDays((current) =>
+                          current.includes(day)
+                            ? current.filter((d) => d !== day)
+                            : [...current, day]
+                        )
+                      }
+                      className={`rounded-2xl border px-3 py-2 text-sm font-medium transition ${
+                        deliveryDays.includes(day)
+                          ? 'border-blue-600 bg-blue-100 text-blue-700'
+                          : 'border-slate-300 bg-white text-slate-700'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-2">Foto de la factura</p>
@@ -322,9 +381,9 @@ export const SuppliersPage = () => {
                 onChange={handleInvoicePhotoChange}
                 className="w-full rounded-2xl border border-slate-300 p-3 outline-none focus:border-blue-500"
               />
-              {invoicePhoto && (
+              {invoicePhotoUrl && (
                 <img
-                  src={invoicePhoto}
+                  src={invoicePhotoUrl}
                   alt="Factura"
                   className="mt-3 h-40 w-full rounded-2xl object-cover border border-slate-200"
                 />
@@ -398,9 +457,9 @@ export const SuppliersPage = () => {
                           <p>{receipt.deliveryDays.join(', ')}</p>
                         </div>
                       )}
-                      {receipt.invoicePhoto && (
+                      {receipt.invoicePhotoUrl && (
                         <img
-                          src={receipt.invoicePhoto}
+                          src={receipt.invoicePhotoUrl}
                           alt="Factura"
                           className="mt-3 h-40 w-full rounded-2xl object-cover border border-slate-200"
                         />
@@ -413,10 +472,15 @@ export const SuppliersPage = () => {
                       </p>
                       <div className="mt-4 flex flex-col gap-3">
                         <button
-                          onClick={() => markReceiptReceived(receipt.id)}
-                          className="rounded-2xl bg-green-600 px-4 py-3 text-white font-semibold hover:bg-green-700 transition"
+                          onClick={() => receipt.status !== 'Recibido' && markReceiptReceived(receipt.id)}
+                          disabled={receipt.status === 'Recibido'}
+                          className={`rounded-2xl px-4 py-3 font-semibold transition ${
+                            receipt.status === 'Recibido'
+                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                          }`}
                         >
-                          Marcar recibido
+                          {receipt.status === 'Recibido' ? 'Recibido' : 'Marcar recibido'}
                         </button>
                         <button
                           onClick={() => removeReceipt(receipt.id)}

@@ -8,6 +8,7 @@ import {
   useProductsStore
 } from '../../products/store/products.store'
 import { QuickProductModal } from '../components/QuickProductModal'
+import { useSalesStore } from '../../sales/store/sales.store'
 
 import {
   useCartStore
@@ -37,6 +38,46 @@ export const POSPage = () => {
   const [checkoutOpen,
     setCheckoutOpen
   ] = useState(false)
+
+  const { sales } = useSalesStore()
+
+  const topSellingProducts = useMemo(() => {
+    const counts = new Map<string, { productName: string; count: number }>()
+
+    sales.forEach((sale) => {
+      sale.items.forEach((item) => {
+        const existing = counts.get(item.id)
+        if (existing) {
+          counts.set(item.id, {
+            ...existing,
+            count: existing.count + item.quantity
+          })
+          return
+        }
+
+        counts.set(item.id, {
+          productName: item.name,
+          count: item.quantity
+        })
+      })
+    })
+
+    const entries = Array.from(counts.entries()).map(
+      ([productId, data]) => ({ productId, ...data })
+    )
+
+    if (entries.length === 0) {
+      return products.slice(0, 4).map((product) => ({
+        productId: product.id,
+        productName: product.name,
+        count: 0
+      }))
+    }
+
+    return entries
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+  }, [sales, products])
 
   const handleScan = (
     value: string
@@ -208,10 +249,30 @@ export const POSPage = () => {
               </button>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
-              <p className="text-lg font-semibold mb-2">Escanea el producto o escribe el código.</p>
-              <p className="text-sm">No se muestran todos los productos aquí para que la venta sea más rápida.</p>
-            </div>
+            {topSellingProducts.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                <p className="text-lg font-semibold mb-2">Escanea el producto o escribe el código.</p>
+                <p className="text-sm">No se muestran todos los productos aquí para que la venta sea más rápida.</p>
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-3">
+                {topSellingProducts.map((product) => {
+                  const productData = products.find((p) => p.id === product.productId)
+
+                  return (
+                    <button
+                      key={product.productId}
+                      type="button"
+                      onClick={() => productData && addToCart(productData)}
+                      className="w-full text-left rounded-2xl border border-slate-200 p-4 hover:border-blue-500 hover:bg-blue-50"
+                    >
+                      <div className="font-semibold">{product.productName}</div>
+                      <p className="text-sm text-gray-500">{product.count} vendidos</p>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           <div
@@ -265,20 +326,15 @@ export const POSPage = () => {
                     <input
                       type="number"
                       min={1}
+                      max={9999}
                       step={1}
                       value={item.quantity}
                       onChange={(e) => {
                         const value = Number(e.target.value)
 
-                        if (
-                          Number.isInteger(value) &&
-                          value >= 1
-                        ) {
-                          updateQuantity(
-                            item.id,
-                            value
-                          )
-                        }
+                        if (!Number.isInteger(value)) return
+                        const clamped = Math.max(1, Math.min(9999, value))
+                        updateQuantity(item.id, clamped)
                       }}
                       className="
                         mt-1

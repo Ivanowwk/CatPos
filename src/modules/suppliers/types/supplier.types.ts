@@ -49,7 +49,7 @@ export interface SupplierReceipt {
 
   status: 'Pendiente' | 'Recibido'
 
-  invoicePhoto?: string
+  invoicePhotoUrl?: string
 
   items: SupplierReceiptItem[]
 

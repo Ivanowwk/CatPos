@@ -52,6 +52,10 @@ export const useCartStore =
             )
 
           if (existing) {
+            if (existing.quantity >= product.stock) {
+              return state
+            }
+
             return {
               items:
                 state.items.map(
@@ -67,6 +71,10 @@ export const useCartStore =
                       : item
                 )
             }
+          }
+
+          if (product.stock <= 0) {
+            return state
           }
 
           return {
@@ -101,8 +109,9 @@ export const useCartStore =
                 ? {
                     ...item,
                     quantity:
-                      item.quantity +
-                      1
+                      item.quantity < item.stock
+                        ? item.quantity + 1
+                        : item.quantity
                   }
                 : item
           )
@@ -139,7 +148,7 @@ export const useCartStore =
                 ? {
                     ...item,
                     quantity:
-                      Math.max(1, quantity)
+                      Math.max(1, Math.min(item.stock, quantity))
                   }
                 : item
           )
