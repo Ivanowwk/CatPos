@@ -30,6 +30,7 @@ export const ProductsPage =
       useState('Todos')
 
     const [selectedBarcode, setSelectedBarcode] = useState<string | undefined>(undefined)
+    const [selectedBarcodeRefresh, setSelectedBarcodeRefresh] = useState(0)
 
     const [excelModalOpen, setExcelModalOpen] = useState(false)
 
@@ -85,7 +86,10 @@ export const ProductsPage =
               gap-6
             "
           >
-          <ProductForm initialBarcode={selectedBarcode} />
+          <ProductForm
+            key={`${selectedBarcode ?? 'new'}-${selectedBarcodeRefresh}`}
+            initialBarcode={selectedBarcode}
+          />
 
           <div
             className="
@@ -223,7 +227,18 @@ export const ProductsPage =
                   </div>
 
                   <div className="flex gap-2">
-                    <button onClick={() => setSelectedBarcode(product.barcode || product.id)} className="bg-blue-500 hover:bg-blue-600 transition text-white px-4 py-2 rounded-xl font-semibold">Editar</button>
+                    <button
+                      onClick={() => {
+                        const barcode = product.barcode || product.id
+                        if (selectedBarcode === barcode) {
+                          setSelectedBarcodeRefresh(
+                            (prev) => prev + 1
+                          )
+                        }
+                        setSelectedBarcode(barcode)
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 transition text-white px-4 py-2 rounded-xl font-semibold"
+                    >Editar</button>
                     <button onClick={() => removeProduct(product.id)} className="bg-red-500 hover:bg-red-600 transition text-white px-4 py-2 rounded-xl font-semibold">Eliminar</button>
                   </div>
                 </div>

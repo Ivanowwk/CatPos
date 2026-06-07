@@ -1,0 +1,26 @@
+[package]
+name = "catpos"
+version = "0.1.0"
+description = "Sistema de Punto de Venta - CatPos"
+authors = ["You <you@example.com>"]
+license = ""
+repository = ""
+default-run = "catpos"
+edition = "2021"
+rust-version = "1.60"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.5", features = ["fs-all", "shell-all"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[[bin]]
+name = "catpos"
+path = "src/main.rs"

@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -38,6 +39,8 @@ export const POSPage = () => {
   const [checkoutOpen,
     setCheckoutOpen
   ] = useState(false)
+
+  const barcodeInputRef = useRef<HTMLInputElement | null>(null)
 
   const { sales } = useSalesStore()
 
@@ -129,9 +132,9 @@ export const POSPage = () => {
   }
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' && event.key !== ' ') return
+    barcodeInputRef.current?.focus()
 
+    const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (
         target?.closest('input, textarea, select') ||
@@ -140,15 +143,34 @@ export const POSPage = () => {
         return
       }
 
-      if (items.length > 0) {
+      if (event.key === 'Enter') {
         event.preventDefault()
-        setCheckoutOpen(true)
+        if (barcode.trim()) {
+          handleScan(barcode)
+        } else {
+          barcodeInputRef.current?.focus()
+        }
+        return
+      }
+
+      if (/^[0-9]$/.test(event.key)) {
+        event.preventDefault()
+        barcodeInputRef.current?.focus()
+        setBarcode((prev) => prev + event.key)
+        return
+      }
+
+      if (event.code === 'Space' || event.key === ' ') {
+        if (items.length > 0) {
+          event.preventDefault()
+          setCheckoutOpen(true)
+        }
       }
     }
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [items])
+  }, [barcode, items.length])
 
   return (
     <>
@@ -206,6 +228,7 @@ export const POSPage = () => {
 
             <div className="flex flex-col gap-3">
               <input
+                ref={barcodeInputRef}
                 autoFocus
                 value={barcode}
                 onChange={(e) =>

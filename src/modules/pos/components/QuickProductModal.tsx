@@ -24,29 +24,71 @@ export const QuickProductModal = ({ open, onClose, initial, onSaved }: Props) =>
   const [name, setName] = useState(initial.name)
   const [type, setType] = useState('Bebidas')
   const [costPrice, setCostPrice] = useState(initial.costPrice ? String(initial.costPrice) : '')
+  const [salePrice, setSalePrice] = useState(initial.salePrice ? String(initial.salePrice) : '')
   const [profitMargin, setProfitMargin] = useState('30')
   const [stock, setStock] = useState(initial.stock ? String(initial.stock) : '')
+  const [lastPriceEdited, setLastPriceEdited] = useState<'cost' | 'sale'>('cost')
+
+  const parseNumber = (value: string) => {
+    return Number(value.replace(/\./g, '')) || 0
+  }
 
   const formatNumber = (value: string) => {
     const numbers = value.replace(/\D/g, '')
+
     if (!numbers) return ''
+
     return new Intl.NumberFormat('es-CO').format(Number(numbers))
   }
 
+  const numericCost = parseNumber(costPrice)
+  const numericSale = parseNumber(salePrice)
+  const numericMargin = Number(profitMargin) || 0
+  const numericStock = parseNumber(stock)
+
   React.useEffect(() => {
     setName(initial.name)
+    setType(initial.categories?.[0] || 'Bebidas')
     setCostPrice(initial.costPrice ? String(initial.costPrice) : '')
+    setSalePrice(initial.salePrice ? String(initial.salePrice) : '')
     setProfitMargin('30')
     setStock(initial.stock ? String(initial.stock) : '')
+    setLastPriceEdited('cost')
   }, [initial])
+
+  React.useEffect(() => {
+    if (lastPriceEdited !== 'cost') return
+
+    if (!costPrice) {
+      setSalePrice('')
+      return
+    }
+
+    const computed = Math.round(numericCost * (1 + numericMargin / 100))
+    setSalePrice(computed ? formatNumber(String(computed)) : '')
+  }, [costPrice, numericCost, numericMargin, lastPriceEdited])
+
+  React.useEffect(() => {
+    if (lastPriceEdited !== 'sale') return
+
+    if (!salePrice) {
+      setCostPrice('')
+      return
+    }
+
+    const computed = numericMargin >= 0 ? Math.round(numericSale / (1 + numericMargin / 100)) : numericSale
+    setCostPrice(computed ? formatNumber(String(computed)) : '')
+  }, [salePrice, numericSale, numericMargin, lastPriceEdited])
 
   if (!open) return null
 
   const submit = () => {
-    const cp = Number(costPrice.replace(/\./g, '')) || 0
+    const cp = parseNumber(costPrice)
     const pm = Number(profitMargin) || 0
-    const st = Number(stock.replace(/\./g, '')) || 0
-    const sp = Math.round(cp * (1 + pm / 100))
+    const st = parseNumber(stock)
+    const sp = parseNumber(salePrice) || Math.round(cp * (1 + pm / 100))
+
+    if (!name.trim() || cp <= 0 || sp <= 0) return
 
     addProduct({
       id: initial.barcode,
@@ -112,10 +154,30 @@ export const QuickProductModal = ({ open, onClose, initial, onSaved }: Props) =>
             onChange={(e) => {
               const numbers = e.target.value.replace(/\D/g, '').slice(0, 9)
               setCostPrice(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+              setLastPriceEdited('cost')
             }}
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none"
             placeholder="5.000"
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Precio de venta</label>
+          <input
+            value={salePrice}
+            onChange={(e) => {
+              const numbers = e.target.value.replace(/\D/g, '').slice(0, 9)
+              setSalePrice(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+              setLastPriceEdited('sale')
+            }}
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none"
+            placeholder="6.500"
+          />
+          {numericSale > 0 && (
+            <p className="text-xs text-slate-500 mt-2">
+              Precio de compra estimado: $ {formatNumber(String(Math.round(numericSale / (1 + numericMargin / 100))))}
+            </p>
+          )}
         </div>
 
         <div className="mb-4">

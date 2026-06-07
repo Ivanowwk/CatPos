@@ -1,7 +1,7 @@
-import { ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 
-import { useProductsStore } from '../../products/store/products.store'
+// import { useProductsStore } from '../../products/store/products.store'
 import { useSuppliersStore } from '../store/suppliers.store'
 
 const statusOptions = ['Pendiente', 'Recibido'] as const
@@ -11,17 +11,12 @@ export const SuppliersPage = () => {
     suppliers,
     receipts,
     addSupplier,
-    removeSupplier,
     addReceipt,
     markReceiptReceived,
     removeReceipt
   } = useSuppliersStore()
 
-  const {
-    products,
-    addProduct,
-    updateProduct
-  } = useProductsStore()
+  
 
   const [supplierName, setSupplierName] = useState('')
   const [supplierContact, setSupplierContact] = useState('')

@@ -12,7 +12,7 @@ export const CartItemComponent = ({
   const {
     increaseQuantity,
     decreaseQuantity,
-    removeItem
+    removeFromCart
   } = useCartStore()
 
   return (
@@ -24,13 +24,13 @@ export const CartItemComponent = ({
           </h3>
 
           <p className="text-sm text-gray-500">
-            ${item.price}
+            ${item.salePrice}
           </p>
         </div>
 
         <button
           onClick={() =>
-            removeItem(item.id)
+            removeFromCart(item.id)
           }
           className="text-red-500"
         >

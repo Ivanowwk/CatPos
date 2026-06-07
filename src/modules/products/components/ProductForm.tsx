@@ -29,12 +29,20 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
   ] = useState('')
 
   const [
+    salePrice,
+    setSalePrice
+  ] = useState('')
+
+  const [
     profitMargin,
     setProfitMargin
   ] = useState('30')
 
   const [stock, setStock] =
     useState('')
+
+  const [lastPriceEdited, setLastPriceEdited] =
+    useState<'cost' | 'sale'>('cost')
 
   const parseNumber = (
     value: string
@@ -59,6 +67,9 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
 
   const numericCost =
     parseNumber(costPrice)
+
+  const numericSale =
+    parseNumber(salePrice)
 
   const numericMargin =
     Number(profitMargin) || 0
@@ -92,30 +103,93 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
         String(existingProduct.costPrice)
       )
     )
+    setSalePrice(
+      formatNumber(
+        String(existingProduct.salePrice)
+      )
+    )
     setProfitMargin(
       String(existingProduct.profitMargin)
     )
+    setLastPriceEdited('cost')
   }, [existingProduct])
 
-  const salePrice =
-    useMemo(() => {
-      return Math.round(
+  useEffect(() => {
+    if (lastPriceEdited === 'cost') {
+      if (!costPrice) {
+        setSalePrice('')
+        return
+      }
+
+      const computed = Math.round(
         numericCost +
-          (
-            numericCost *
-            numericMargin
-          ) /
+          (numericCost *
+            numericMargin) /
             100
       )
-    }, [
-      numericCost,
-      numericMargin
-    ])
+
+      setSalePrice(
+        computed
+          ? formatNumber(String(computed))
+          : ''
+      )
+    }
+  }, [costPrice, numericCost, numericMargin, lastPriceEdited])
+
+  useEffect(() => {
+    if (lastPriceEdited === 'sale') {
+      if (!salePrice) {
+        setCostPrice('')
+        return
+      }
+
+      const computed =
+        numericMargin >= 0
+          ? Math.round(
+              numericSale /
+                (1 + numericMargin / 100)
+            )
+          : numericSale
+
+      setCostPrice(
+        computed
+          ? formatNumber(String(computed))
+          : ''
+      )
+    }
+  }, [salePrice, numericSale, numericMargin, lastPriceEdited])
+
+  const computedSaleFromCost =
+    numericCost > 0
+      ? Math.round(
+          numericCost +
+            (numericCost *
+              numericMargin) /
+              100
+        )
+      : 0
+
+  const computedCostFromSale =
+    numericSale > 0 &&
+    numericMargin >= 0
+      ? Math.round(
+          numericSale /
+            (1 + numericMargin / 100)
+        )
+      : 0
 
   
 
   const submit = () => {
-    if (!name || numericCost <= 0 || numericStock <= 0) return
+    if (!name || numericCost <= 0 || numericSale <= 0) return
+
+    const stockToSave = existingProduct
+      ? numericStock > 0
+        ? existingProduct.stock + numericStock
+        : existingProduct.stock
+      : numericStock
+
+    if (!existingProduct && stockToSave <= 0) return
 
     if (existingProduct) {
       updateProduct(existingProduct.id, {
@@ -124,10 +198,8 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
         category,
         costPrice: numericCost,
         profitMargin: numericMargin,
-        salePrice,
-        stock:
-          existingProduct.stock +
-          numericStock
+        salePrice: numericSale,
+        stock: stockToSave
       })
     } else {
       addProduct({
@@ -145,10 +217,11 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
         profitMargin:
           numericMargin,
 
-        salePrice,
+        salePrice:
+          numericSale,
 
         stock:
-          numericStock
+          stockToSave
       })
     }
 
@@ -292,6 +365,7 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
           onChange={(e) => {
             const numbers = e.target.value.replace(/\D/g, '').slice(0, 9)
             setCostPrice(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+            setLastPriceEdited('cost')
           }}
           placeholder="5.000"
           className="
@@ -303,6 +377,45 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
             focus:border-blue-500
           "
         />
+      </div>
+
+      <div>
+        <p
+          className="
+            text-sm
+            text-gray-500
+            mb-2
+          "
+        >
+          Precio de venta
+        </p>
+
+        <input
+          type="text"
+          inputMode="numeric"
+          value={salePrice}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const numbers = e.target.value.replace(/\D/g, '').slice(0, 9)
+            setSalePrice(numbers ? new Intl.NumberFormat('es-CO').format(Number(numbers)) : '')
+            setLastPriceEdited('sale')
+          }}
+          placeholder="6.500"
+          className="
+            w-full
+            border
+            rounded-xl
+            p-3
+            outline-none
+            focus:border-blue-500
+          "
+        />
+
+        {computedCostFromSale > 0 ? (
+          <p className="text-xs text-slate-500 mt-2">
+            Precio de compra calculado: $ {formatNumber(String(computedCostFromSale))}
+          </p>
+        ) : null}
       </div>
 
       <div>
@@ -377,9 +490,15 @@ export const ProductForm = ({ initialBarcode }: { initialBarcode?: string }) => 
           "
         />
 
+        {computedSaleFromCost > 0 ? (
+          <p className="text-xs text-slate-500 mt-2">
+            Precio de venta estimado: $ {formatNumber(String(computedSaleFromCost))}
+          </p>
+        ) : null}
+
         {existingProduct ? (
           <p className="text-xs text-slate-500 mt-2">
-            Este producto ya existe. La cantidad ingresada se sumará al stock existente.
+            Este producto ya existe. Deja este campo vacío para mantener el stock actual, o ingresa una cantidad para sumarla.
           </p>
         ) : null}
       </div>
